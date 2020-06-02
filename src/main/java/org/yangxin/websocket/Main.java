@@ -5,6 +5,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.sctp.nio.NioSctpServerChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -22,7 +23,7 @@ public class Main {
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(bossGroup, workGroup);
-            serverBootstrap.channel(NioSctpServerChannel.class);
+            serverBootstrap.channel(NioServerSocketChannel.class);
             serverBootstrap.childHandler(new WebSocketChannelHandler());
             log.info("服务端开启，等待客户端连接……");
 
