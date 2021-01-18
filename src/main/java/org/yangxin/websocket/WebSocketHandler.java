@@ -22,6 +22,7 @@ import java.util.Date;
  * @author yangxin
  * 2020/06/01 20:18
  */
+@SuppressWarnings("unused")
 @Slf4j
 public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
 
@@ -43,6 +44,9 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
         }
     }
 
+    /**
+     * 处理websocket请求
+     */
     private void handWebsocketFrame(ChannelHandlerContext channelHandlerContext, WebSocketFrame webSocketFrame) {
         // 判断是否是关闭websocket的指令
         if (webSocketFrame instanceof CloseWebSocketFrame) {
@@ -55,7 +59,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
         // 判断是否是二进制消息，如果是二进制消息，抛出异常
-        if (! (webSocketFrame instanceof TextWebSocketFrame)) {
+        if (!(webSocketFrame instanceof TextWebSocketFrame)) {
             log.info("目前我们不支持二进制消息");
             throw new RuntimeException("【" + this.getClass().getName() + "】不支持消息");
         }
@@ -63,9 +67,9 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
         // 返回应答消息
         // 获取客户端向服务端发送的消息
         String request = ((TextWebSocketFrame) webSocketFrame).text();
-        log.info("服务端收到客户端的消息===>>>" + request);
+        log.info("服务端收到客户端的消息: [{}]", request);
         TextWebSocketFrame textWebSocketFrame = new TextWebSocketFrame(new Date().toString()
-        + channelHandlerContext.channel().id() + "===>>>" + request);
+                + channelHandlerContext.channel().id() + "===>>>" + request);
         // 群发，服务端向每个连接上来的客户端群发消息
         NettyConfig.channelGroup.writeAndFlush(textWebSocketFrame);
     }
@@ -74,6 +78,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
      * 处理客户端向服务端发起http握手请求的业务
      */
     private void handHttpRequest(ChannelHandlerContext channelHandlerContext, FullHttpRequest fullHttpRequest) {
+        // 如果解码失败，或者协议头的字段upgrade的字段值不为websocket，则返回HTTP响应，调用结束
         if (!fullHttpRequest.decoderResult().isSuccess()
                 || !("websocket").equals(fullHttpRequest.headers().get("Upgrade"))) {
             sendHttpResponse(channelHandlerContext, fullHttpRequest, new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
@@ -81,13 +86,16 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
             return;
         }
 
+        // 工厂模式创建websocket握手者
         WebSocketServerHandshakerFactory webSocketServerHandshakerFactory
                 = new WebSocketServerHandshakerFactory(WEB_SOCKET_URL, null, false);
-        WebSocketServerHandshaker webSocketServerHandshaker = webSocketServerHandshakerFactory
+        webSocketServerHandshaker = webSocketServerHandshakerFactory
                 .newHandshaker(fullHttpRequest);
+        // 握手者为空，则发送不支持的版本的响应
         if (webSocketServerHandshaker == null) {
             WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(channelHandlerContext.channel());
         } else {
+            // 握手者不为空，则握手
             webSocketServerHandshaker.handshake(channelHandlerContext.channel(), fullHttpRequest);
         }
     }
@@ -114,16 +122,16 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
      * 客户端与服务端创建连接的时候调用
      */
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public void channelActive(ChannelHandlerContext ctx) {
         NettyConfig.channelGroup.add(ctx.channel());
-        log.info("客户端与服务端连接开启……");
+        log.info("客户端与服务端连接开启。");
     }
 
     /**
      * 客户端与服务端断开连接的时候调用
      */
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         NettyConfig.channelGroup.remove(ctx.channel());
         log.info("客户端与服务端连接关闭……");
     }
@@ -132,7 +140,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
      * 服务端接收客户端发送过来的数据结束之后调用
      */
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+    public void channelReadComplete(ChannelHandlerContext ctx) {
         ctx.flush();
     }
 
@@ -140,7 +148,7 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
      * 工程出现异常的时候调用
      */
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
     }
